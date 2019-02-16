@@ -4,33 +4,32 @@ import (
   "crypto/aes"
   "crypto/cipher"
   "crypto/rand"
-  "encoding/hex"
   "log"
   "io"
   "encoding/base64"
   "os"
 )
 
-func Encode(text []byte) string {
+func encode(text []byte) string {
   return base64.StdEncoding.EncodeToString(text)
 }
 
-func Encrypt(text string) string {
+func Encrypt(text, password string) string {
   var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
   logger.Println("initializing encryption")
   plaintext := []byte(text)
-  ciphertext, nonce := encrypt(plaintext)
+  key := decode(password)
+  ciphertext, nonce := encrypt(plaintext, key)
   cipher := append(nonce, ciphertext...)
-  return Encode(cipher)
+  return encode(cipher)
 
 }
 
-func encrypt(text []byte) ([]byte, []byte) {
+func encrypt(text, key []byte) ([]byte, []byte) {
 
   var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
 
   logger.Println("initializing key")
-  key, _ := hex.DecodeString("6368616e676520746869732070617373776f726420746f206120736563726574")
 
   logger.Println("texto to bytes")
   plaintext := []byte(text)

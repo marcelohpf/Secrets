@@ -11,6 +11,8 @@ var (
   CiphertextPath string
   Encrypt bool
   Decrypt bool
+  GenerateKey bool
+  SizeKey int
 )
 
 func init(){
@@ -20,5 +22,7 @@ func init(){
   flag.StringVar(&CiphertextPath, "cp", "", "Select where the cipher content will be writen.")
   flag.BoolVar(&Encrypt, "e", false, "Operation of encrypt a file.")
   flag.BoolVar(&Decrypt, "d", false, "Operation of decrypt a file.")
+  flag.BoolVar(&GenerateKey, "gk", false, "Generate a random key with 32 bytes.")
+  flag.IntVar(&SizeKey, "sk", 32, "Define the size of generated key.")
   flag.Parse()
 }
