@@ -9,6 +9,7 @@ var rootCmd = &cobra.Command{
   Use:   "vault",
   Short: "Vault is a simple secret managemnet tool.",
   Long: "Vault is a simple secret management tool.",
+  Version: "0.1.0",
   Run: execute,
 }
 
@@ -19,5 +20,6 @@ func Execute() {
 }
 
 func execute(cmd *cobra.Command, args[]string){
+  fmt.Println("Use --help")
   log.Info("Running on [host]:[port]...")
 }

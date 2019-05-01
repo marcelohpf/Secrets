@@ -17,3 +17,4 @@ bin/
 # examples files
 examples/cipher.txt
 examples/vault.key
+examples/little-secrets

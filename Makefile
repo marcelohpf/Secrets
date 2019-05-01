@@ -8,12 +8,12 @@ vault: $(BINDIR)
 $(BINDIR):
 	mkdir -p $(BINDIR)
 
-run: vault cipher decipher
-cipher: vault
-	$(BINDIR)/vault seal --key examples/vault.key --text-path examples/plain.txt --cipher-path examples/cipher.txt
+test: gen seal unseal
+seal: vault
+	$(BINDIR)/vault box seal --key-path ./examples/ --key vault.key --box-path ./examples --item little-secrets --in ./examples/plain.txt
 
-decipher: vault
-	$(BINDIR)/vault unseal --key  examples/vault.key --cipher-path examples/cipher.txt
+unseal: vault
+	$(BINDIR)/vault box unseal --key-path  ./examples/ --key vault.key --box-path ./examples/ --item little-secrets --out ./examples/plain.txt
 
 
 gen: vault

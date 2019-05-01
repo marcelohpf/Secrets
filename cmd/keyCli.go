@@ -10,6 +10,7 @@ var keyCmd = &cobra.Command{
   Use:   "keygen",
   Short: "Generate a key",
   Long: "Generate a key",
+  Version: "0.0",
   Run: genKey,
 }
 

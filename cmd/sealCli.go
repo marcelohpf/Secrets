@@ -11,6 +11,7 @@ var boxCmd = &cobra.Command{
   Use: "box",
   Short: "Box",
   Long: "Manage your secret boxes.",
+  Version: "0.0",
   Run: func(cmd *cobra.Command, args[]string){},
 }
 
@@ -31,7 +32,7 @@ func init(){
   boxCmd.PersistentFlags().StringVar(&config.ItemName, "item", "", "Item name to read/write content. Should be a single file on any type.")
   boxCmd.PersistentFlags().StringVar(&config.BoxName, "box", "", "Box name")
   boxCmd.PersistentFlags().StringVar(&config.BoxPath, "box-path", config.DefaultBoxPath, "Box path")
-  boxCmd.PersistentFlags().StringVar(&config.KeyPath, "key path", config.DefaultKeyPath, "Cipher text path")
+  boxCmd.PersistentFlags().StringVar(&config.KeyPath, "key-path", config.DefaultKeyPath, "Cipher text path")
   boxCmd.PersistentFlags().StringVar(&config.KeyName, "key", "", "Key name")
   encryptCmd.PersistentFlags().StringVar(&config.InFile, "in", "", "In file content to seal.")
   decryptCmd.PersistentFlags().StringVar(&config.OutFile, "out", "", "Out file content after unseal.")
