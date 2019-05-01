@@ -2,32 +2,32 @@ package crypto
 
 import (
   "crypto/rand"
-  "log"
+  log "github.com/sirupsen/logrus"
   "io"
   "encoding/base64"
-  "os"
-  "vault/config"
+  "secrets/config"
 )
 
 func GenerateKey() string {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-  logger.Println("Validate Key Size")
+  log.Info("Generating a new key.")
+  log.Debug("Validate Key Size")
   if config.SizeKey != 16 && config.SizeKey != 32 {
-    logger.Fatal("Key should have size of 16 or 32 bytes.")
+    log.Fatal("Key should have size of 16 or 32 bytes.")
     panic("eerrr0r")
   }
 
   key := generate(config.SizeKey)
-  logger.Println("Encoding generated key")
-  return base64.StdEncoding.EncodeToString(key)
+  log.Debug("Encoding generated key")
+  encodedKey := base64.StdEncoding.EncodeToString(key)
+  log.Info("New key generated with success!")
+  return encodedKey
 }
 
 func generate(size int) []byte {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-  logger.Println("Generating stream")
+  log.Info("Generating stream")
   data := make([]byte, size)
   if _, err := io.ReadFull(rand.Reader, data); err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
   return data

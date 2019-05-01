@@ -1,21 +1,25 @@
 CC=go
 PASS=meussegredos
+BINDIR=./bin
 
-vault:
-	$(CC) build
+vault: $(BINDIR)
+	$(CC) build -o $(BINDIR)/vault
+
+$(BINDIR):
+	mkdir -p $(BINDIR)
 
 run: vault cipher decipher
 cipher: vault
-	./vault --k vault.key --tp plain.txt --cp cipher.txt --e
+	$(BINDIR)/vault seal --key examples/vault.key --text-path examples/plain.txt --cipher-path examples/cipher.txt
 
 decipher: vault
-	./vault --k  vault.key --cp cipher.txt --d
+	$(BINDIR)/vault unseal --key  examples/vault.key --cipher-path examples/cipher.txt
 
 
 gen: vault
-	./vault --gk --k vault.key
+	$(BINDIR)/vault keygen --key-path ./examples/ --key vault.key
 
 .PHONY: clean vault
 
 clean:
-	rm vault
+	rm -rf $(BINDIR)/vault

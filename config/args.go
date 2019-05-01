@@ -1,28 +1,15 @@
 package config
 
-import (
-  "flag"
-)
-
 var (
-  Key string
-  Text string
-  TextPath string
-  CiphertextPath string
-  Encrypt bool
-  Decrypt bool
-  GenerateKey bool
+  KeyPath string
+  KeyName string
+  ItemName string
+  BoxName string
+  BoxPath string
+  InFile string
+  OutFile string
   SizeKey int
 )
 
-func init(){
-  flag.StringVar(&Key, "k", "", "Secret key.")
-  flag.StringVar(&Text, "t", "", "Texto to cipher or decipher")
-  flag.StringVar(&TextPath, "tp", "", "Alternative to use a path to file.")
-  flag.StringVar(&CiphertextPath, "cp", "", "Select where the cipher content will be writen.")
-  flag.BoolVar(&Encrypt, "e", false, "Operation of encrypt a file.")
-  flag.BoolVar(&Decrypt, "d", false, "Operation of decrypt a file.")
-  flag.BoolVar(&GenerateKey, "gk", false, "Generate a random key with 32 bytes.")
-  flag.IntVar(&SizeKey, "sk", 32, "Define the size of generated key.")
-  flag.Parse()
-}
+const DefaultKeyPath string = "/home/marcelohpf/vault"
+const DefaultBoxPath string = "/home/marcelohpf/vault"

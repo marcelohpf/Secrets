@@ -2,40 +2,55 @@ package boxes
 
 import (
   "os"
-  "log"
+  log "github.com/sirupsen/logrus"
   "io/ioutil"
 )
 
-func ReadFileBox(path string) string {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
 
-  logger.Println("Open file descriptor")
+func ReadBoxItem(boxPath, boxName, itemName string) string {
+  log.Info("Reading item from box")
+  if boxPath != "" && itemName != "" {
+    return ReadFromFile(boxPath + "/" + boxName + "/" + itemName)
+  }
+  return ""
+}
+
+func WriteBoxItem(boxPath, boxName, itemName, content string) {
+  log.Info("Writing item into box")
+  if boxPath != "" && itemName != "" {
+    WriteIntoFile(boxPath + "/" + boxName + "/" + itemName, content)
+  }
+}
+
+func ReadFromFile(path string) string {
+  log.Debug("Open file descriptor")
   file, err := os.Open(path)
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
   defer file.Close()
 
-  logger.Println("Read file content")
+  log.Debug("Reading file content")
   content, err := ioutil.ReadAll(file)
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
 
+  log.Debug("File content readed from file!")
   return string(content)
 }
 
-func WriteFileBox(path, content string) {
-  var logger = log.New(os.Stdout, "crypto: ", log.Lshortfile)
-  logger.Println("parte content to bytes")
-  byte_content := []byte(content)
+func WriteIntoFile(path, content string) {
+  log.Debug("parse content to bytes")
+  byteContent := []byte(content)
 
-  logger.Println("Write bytes in file")
-  err := ioutil.WriteFile(path, byte_content, 384 )
+  log.Debug("Write bytes in file")
+  err := ioutil.WriteFile(path, byteContent, 384)
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
+  log.Debug("Bytes writed with success")
 }

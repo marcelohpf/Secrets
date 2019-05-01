@@ -1,0 +1,1 @@
+this is a simple example of text file to be stored in your secrets

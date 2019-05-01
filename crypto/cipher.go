@@ -4,10 +4,9 @@ import (
   "crypto/aes"
   "crypto/cipher"
   "crypto/rand"
-  "log"
+  log "github.com/sirupsen/logrus"
   "io"
   "encoding/base64"
-  "os"
 )
 
 func encode(text []byte) string {
@@ -15,8 +14,7 @@ func encode(text []byte) string {
 }
 
 func Encrypt(text, password string) string {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-  logger.Println("initializing encryption")
+  log.Info("initializing encryption.")
   plaintext := []byte(text)
   key := decode(password)
   ciphertext, nonce := encrypt(plaintext, key)
@@ -26,30 +24,26 @@ func Encrypt(text, password string) string {
 }
 
 func encrypt(text, key []byte) ([]byte, []byte) {
-
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-
-  logger.Println("initializing key")
-
-  logger.Println("texto to bytes")
+  log.Info("initializing key.")
+  log.Info("text to bytes.")
   plaintext := []byte(text)
-  logger.Println("initialize block")
+  log.Info("initialize block.")
   block, err := aes.NewCipher(key)
 
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
 
   nonce := make([]byte, 12)
   if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
 
   aesgcm, err := cipher.NewGCM(block)
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
 

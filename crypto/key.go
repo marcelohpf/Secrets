@@ -3,74 +3,73 @@ package crypto
 import (
   "fmt"
   "os"
-  "log"
+  log "github.com/sirupsen/logrus"
   "io/ioutil"
   "syscall"
   "strings"
 
-  "vault/config"
+  "secrets/config"
 
   "golang.org/x/crypto/ssh/terminal"
 )
 
-func GetKey() string {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-  logger.Println("Getting key")
-  if config.Key != "" {
-    logger.Println("Argument key present.")
-    return read_from_file(config.Key)
+func GetKey(keyPath, keyName string) string {
+  log.Info("Getting key")
+  if keyPath == "" && keyName == "" {
+    log.Debug("Argument key not present read from console")
+    return readFromConsole()
   } else {
-    logger.Println("Argument key not present")
-    return read_from_console()
+    log.Debug("Argument key present.")
+    return readFromFile(keyPath + "/" + keyName)
   }
 }
 
-func SaveKey(key string) {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-  logger.Println("Saving key")
-  if config.Key != "" {
-    logger.Println("Key path present.")
-    err := ioutil.WriteFile(config.Key, []byte(key), 384)
+func SaveKey(keyPath, keyName, key string) {
+  log.Info("Saving key.")
+  if keyName != "" && keyPath != "" {
+    log.Debug("Key is present.")
+    err := ioutil.WriteFile(config.KeyPath + "/" + config.KeyName, []byte(key), 384)
     if err != nil {
-      logger.Fatal(err.Error())
+      log.Fatal(err.Error())
       panic(err.Error())
     }
+  } else {
+    log.Error("Invalid path or file name")
+    panic("error invalid path or file name")
   }
-  fmt.Println(key)
+  log.Info("Key saved with success!")
 }
 
-func read_from_file(path string) string {
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
-
-  logger.Println("Open file descriptor")
+func readFromFile(path string) string {
+  log.Debug("Open file descriptor")
   file, err := os.Open(path)
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
   defer file.Close()
 
-  logger.Println("Read file content")
+  log.Debug("Reading file content")
   content, err := ioutil.ReadAll(file)
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
   }
 
+  log.Info("Key readed from file!")
   return string(content)
 }
 
-func read_from_console() string {
-
-  var logger = log.New(os.Stdout, "crypto ", log.Lshortfile)
+func readFromConsole() string {
   fmt.Print("Enter Password: ")
   bytePassword, err := terminal.ReadPassword(int(syscall.Stdin))
   if err != nil {
-    logger.Fatal(err.Error())
+    log.Fatal(err.Error())
     panic(err.Error())
 
   }
   password := string(bytePassword)
 
+  log.Info("Key readed from console!")
   return strings.TrimSpace(password)
 }
