@@ -16,6 +16,9 @@ import (
   "google.golang.org/api/option"
 )
 
+var notFound = errors.New("Record not found.")
+var foundMany = errors.New("Found more then one record.")
+
 // Refresh google auth token
 func GRefreshAuth() (*oauth2.Token, error) {
   oauthConfig, err := getConfig(config.CredentialsFile)
@@ -47,7 +50,7 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
 
   itemGId, err := getItemGId(boxPath, boxName, itemName, srv)
   if err != nil {
-    log.Warn("GID not retrieved")
+    log.Debug("Something wrong happen when try retrieve item google id.")
     return "", err
   }
 
@@ -67,6 +70,7 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
   return content, nil
 }
 
+// Write the content item into a file in the box path in subdir of box name
 func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
 
   gconfig, err := getConfig(config.CredentialsFile)
@@ -81,14 +85,32 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
   if err != nil {
     log.Fatal(err.Error())
   }
-  file, err := createFile(srv, itemName, content, "root")
-  if err != nil {
-    return err
+  return upsert(srv, boxPath, boxName, itemName, content)
+}
+
+// insert or update a item
+func upsert(service *drive.Service, boxPath, boxName, itemName, content string) error {
+  gid, err := getItemGId(boxPath, boxName, itemName, service)
+
+  // found item do a update
+  if err == nil {
+    file, err := updateFile(service, gid, itemName, content, "root")
+    if err != nil {
+      return err
+    }
+    log.Debug("Update file", file.Id)
+
+  } else { // some other error happens, try to create the file
+    file, err := createFile(service, itemName, content, "root")
+    if err != nil {
+      return err
+    }
+    log.Debug("Create file", file.Id)
   }
-  log.Info("Create a file with id ", file.Id)
   return nil
 }
 
+// Retrieve a google id for a given item name
 func getItemGId(boxPath, boxName, itemName string, service *drive.Service) (string, error) {
   log.Debug("Finding file on drive.")
   r, err := service.Files.List().PageSize(1).
@@ -103,19 +125,16 @@ func getItemGId(boxPath, boxName, itemName string, service *drive.Service) (stri
   switch len(r.Files) {
   case 0:
     log.Warn("Item not found on box.", boxName)
-    return "", errors.New("Record not found")
+    return "", notFound
   case 1:
     return r.Files[0].Id, nil
-  default:
-    return "", errors.New("Found more then one record.")
+  default: // should use the last one ordered by modification date
+    return "", foundMany
   }
 }
 
-// Retrieve a token, saves the token, then returns the generated client.
+// Retrieve a token, saves the token or load from cache.
 func getToken(oauthConfig *oauth2.Config) (*oauth2.Token, error) {
-  // The file token.json stores the user's access and refresh tokens, and is
-  // created automatically when the authorization flow completes for the first
-  // time.
   token, err := tokenFromFile(config.TokenFile)
   if err != nil {
     return refreshToken(oauthConfig)
@@ -190,8 +209,23 @@ func getConfig(credentialsFile string) (*oauth2.Config, error) {
   return config, nil
 }
 
-func createFile(service *drive.Service, name, content, parentId string) (*drive.File, error) {
+func updateFile(service *drive.Service, gid, name, content, parentId string) (*drive.File, error) {
+   f := &drive.File{
+      Name:     name,
+   }
 
+   ioContent := strings.NewReader(content)
+   file, err := service.Files.Update(gid, f).Media(ioContent).Do()
+
+   if err != nil {
+      log.Debug("Could not update file: " + err.Error())
+      return nil, err
+   }
+
+   return file, nil
+}
+
+func createFile(service *drive.Service, name, content, parentId string) (*drive.File, error) {
    f := &drive.File{
       Name:     name,
    }
