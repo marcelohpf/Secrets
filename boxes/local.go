@@ -7,12 +7,12 @@ import (
 )
 
 
-func ReadBoxItem(boxPath, boxName, itemName string) string {
+func ReadBoxItem(boxPath, boxName, itemName string) (string, error) {
   log.Info("Reading item from box")
   if boxPath != "" && itemName != "" {
     return ReadFromFile(boxPath + "/" + boxName + "/" + itemName)
   }
-  return ""
+  return "", nil
 }
 
 func WriteBoxItem(boxPath, boxName, itemName, content string) {
@@ -22,24 +22,24 @@ func WriteBoxItem(boxPath, boxName, itemName, content string) {
   }
 }
 
-func ReadFromFile(path string) string {
+func ReadFromFile(path string) (string, error) {
   log.Debug("Open file descriptor.", path)
   file, err := os.Open(path)
-  if err != nil {
-    log.Fatal(err.Error())
-    panic(err.Error())
-  }
   defer file.Close()
+  if err != nil {
+    log.Debug("Problem to read file", path )
+    return "", err
+  }
 
   log.Debug("Reading file content.")
   content, err := ioutil.ReadAll(file)
   if err != nil {
-    log.Fatal(err.Error())
-    panic(err.Error())
+    log.Debug("Fail to read content of file.", path)
+    return "", err
   }
 
   log.Debug("File content readed from file!")
-  return string(content)
+  return string(content), nil
 }
 
 func WriteIntoFile(path, content string) {

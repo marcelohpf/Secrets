@@ -5,6 +5,7 @@ import (
   "secrets/crypto"
   "secrets/boxes"
   "github.com/spf13/cobra"
+  log "github.com/sirupsen/logrus"
 )
 
 var boxCmd = &cobra.Command{
@@ -43,14 +44,22 @@ func init(){
 
 func gencrypt(cmd *cobra.Command, args[]string) {
   setupLog()
-  boxes.GReadBoxItem("", "", "secrets.vlt")
+  _, err := boxes.GReadBoxItem("", "", "secrets.vlt")
+  if err != nil {
+    log.Fatal(err.Error())
+    panic("Item not retrieved from drive")
+  }
 }
 
 func encrypt(cmd *cobra.Command, args[]string) {
   setupLog()
   key := crypto.GetKey(config.KeyPath, config.KeyName)
   // seal()
-  text := boxes.ReadFromFile(config.InFile)
+  text, err := boxes.ReadFromFile(config.InFile)
+  if err != nil {
+    log.Fatal(err.Error())
+    panic("error")
+  }
   ciphertext := crypto.Encrypt(text, key)
   boxes.WriteBoxItem(config.BoxPath, config.BoxName, config.ItemName, ciphertext)
 }
@@ -59,7 +68,11 @@ func decrypt(cmd *cobra.Command, args[]string) {
   setupLog()
   key := crypto.GetKey(config.KeyPath, config.KeyName)
   // unseal
-  ciphertext := boxes.ReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)
+  ciphertext, err := boxes.ReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)
+  if err != nil {
+    log.Fatal(err.Error())
+    panic("error")
+  }
   text := crypto.Decrypt(ciphertext, key)
   boxes.WriteIntoFile(config.OutFile, text)
 }

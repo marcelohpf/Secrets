@@ -10,10 +10,10 @@ $(BINDIR):
 
 test: gen seal unseal
 seal: vault
-	$(BINDIR)/vault box seal --key-path ./examples/ --key vault.key --box-path ./examples --item little-secrets --in ./examples/plain.txt
+	$(BINDIR)/vault box seal --debug --key-path ./examples/ --key vault.key --box-path ./examples --item little-secrets --in ./examples/plain.txt
 
 unseal: vault
-	$(BINDIR)/vault box unseal --key-path  ./examples/ --key vault.key --box-path ./examples/ --item little-secrets --out ./examples/plain.txt
+	$(BINDIR)/vault box unseal --debug --key-path  ./examples/ --key vault.key --box-path ./examples/ --item little-secrets --out ./examples/plain.txt
 
 
 gen: vault
