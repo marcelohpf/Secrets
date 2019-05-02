@@ -23,7 +23,7 @@ var gtokenCmd = &cobra.Command{
   Version: "0.0",
   Run: func(cmd *cobra.Command, args[]string) {
     setupLog()
-    err := boxes.GRefreshAuth()
+    _, err := boxes.GRefreshAuth()
     if err != nil {
       log.Fatal(err.Error())
       panic("Could not refresh token for google drive api")

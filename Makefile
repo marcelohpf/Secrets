@@ -22,4 +22,4 @@ gen: vault
 .PHONY: clean vault
 
 clean:
-	rm -rf $(BINDIR)/vault
+	rm -rf $(BINDIR)/ examples/little-secrets examples/vault.key

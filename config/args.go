@@ -15,3 +15,7 @@ var (
 
 const DefaultKeyPath string = "/home/marcelohpf/vault"
 const DefaultBoxPath string = "/home/marcelohpf/vault"
+
+var TokenFile string = "/home/marcelohpf/.config/vault/token.json"
+var CredentialsFile string = "/home/marcelohpf/.config/vault/credentials.json"
+var BackendStorage string = "gdrive"

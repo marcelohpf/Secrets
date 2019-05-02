@@ -5,40 +5,41 @@ import (
   "encoding/json"
   "fmt"
   log "github.com/sirupsen/logrus"
-  "net/http"
   "errors"
+  "strings"
+  "bytes"
 
   "golang.org/x/net/context"
   "golang.org/x/oauth2"
   "golang.org/x/oauth2/google"
   "google.golang.org/api/drive/v3"
+  "google.golang.org/api/option"
 )
 
-func GRefreshAuth() error {
+// Refresh google auth token
+func GRefreshAuth() (*oauth2.Token, error) {
   oauthConfig, err := getConfig(config.CredentialsFile)
   if err != nil {
-    return err
+    return nil, err
   }
-  token := getTokenFromWeb(oauthConfig)
-  log.Debug("Saving credential file.")
-  tokenJson, err := json.Marshal(token)
-  if err != nil {
-    log.Debug("Could not parse the token")
-    return err
-  }
-  WriteIntoFile(config.TokenFile, string(tokenJson))
-  return nil
+  return refreshToken(oauthConfig)
 }
 
+// Read a file from google drive
 func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
   log.Info("Reading box item.")
   gconfig, err := getConfig(config.CredentialsFile)
   if err != nil {
     return "", err
   }
-  client := getClient(gconfig)
 
-  srv, err := drive.New(client)
+  token, err := getToken(gconfig)
+  if err != nil {
+    return "", err
+  }
+
+  ctx := context.Background()
+  srv, err := drive.NewService(ctx, option.WithTokenSource(gconfig.TokenSource(ctx, token)))
   if err != nil {
     log.Warn("Could not initialize a google client.")
     return "", err
@@ -55,37 +56,37 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
     log.Debug("http drive file retrive", err)
     return "", err
   }
-  log.Info(http)
+
+  defer http.Body.Close()
+
+  buff := new(bytes.Buffer)
+  buff.ReadFrom(http.Body)
+  content := buff.String()
 
   log.Debug(boxPath, boxName, itemName)
-  return "", nil
+  return content, nil
 }
 
-func GWriteBoxItem(boxPath, boxName, itemName, content string) {
+func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
+
   gconfig, err := getConfig(config.CredentialsFile)
   if err != nil {
     panic("error to write")
   }
-  client := getClient(gconfig)
 
-  srv, err := drive.New(client)
+  token, err := getToken(gconfig)
+  ctx := context.Background()
+  srv, err := drive.NewService(ctx, option.WithTokenSource(gconfig.TokenSource(ctx, token)))
+
   if err != nil {
     log.Fatal(err.Error())
   }
-
-  r, err := srv.Files.List().PageSize(10).
-  Fields("nextPageToken, files(id, name)").Do()
+  file, err := createFile(srv, itemName, content, "root")
   if err != nil {
-    log.Fatal(err.Error())
+    return err
   }
-  fmt.Println("Files:")
-  if len(r.Files) == 0 {
-    fmt.Println("No files found.")
-  } else {
-    for _, i := range r.Files {
-      fmt.Printf("%s (%s)\n", i.Name, i.Id)
-    }
-  }
+  log.Info("Create a file with id ", file.Id)
+  return nil
 }
 
 func getItemGId(boxPath, boxName, itemName string, service *drive.Service) (string, error) {
@@ -111,29 +112,33 @@ func getItemGId(boxPath, boxName, itemName string, service *drive.Service) (stri
 }
 
 // Retrieve a token, saves the token, then returns the generated client.
-func getClient(oauthConfig *oauth2.Config) *http.Client {
+func getToken(oauthConfig *oauth2.Config) (*oauth2.Token, error) {
   // The file token.json stores the user's access and refresh tokens, and is
   // created automatically when the authorization flow completes for the first
   // time.
   token, err := tokenFromFile(config.TokenFile)
   if err != nil {
-    token = getTokenFromWeb(oauthConfig)
-    log.Debug("Saving credential file.")
-    tokenJson, err := json.Marshal(token)
-    if err != nil {
-      log.Fatal(err.Error())
-      panic("that is bad")
-    }
-    WriteIntoFile(config.TokenFile, string(tokenJson))
+    return refreshToken(oauthConfig)
   }
-  return oauthConfig.Client(context.Background(), token)
+  return token, nil
+}
+
+func refreshToken(oauthConfig *oauth2.Config) (*oauth2.Token, error) {
+  token := getTokenFromWeb(oauthConfig)
+  log.Debug("Saving credential file.")
+  tokenJson, err := json.Marshal(token)
+  if err != nil {
+    log.Debug("Could not parse the token")
+    return nil, err
+  }
+  WriteIntoFile(config.TokenFile, string(tokenJson))
+  return token, nil
 }
 
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(oauthConfig *oauth2.Config) *oauth2.Token {
   authURL := oauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-  fmt.Printf("Go to the following link in your browser then type the "+
-  "authorization code: \n%v\n", authURL)
+  fmt.Printf("Auhtorization URL\n%v\nAuthorization code:\n", authURL)
 
   var authCode string
   if _, err := fmt.Scan(&authCode); err != nil {
@@ -160,7 +165,14 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
     log.Warn("Could not Unmarshal json token")
     return nil, err
   }
-  return tok, err
+
+  if tok.Valid() {
+    log.Debug("Token from file is ok!")
+    return tok, nil
+  } else {
+    return nil, errors.New("Token is invalid or expired")
+  }
+
 }
 
 func getConfig(credentialsFile string) (*oauth2.Config, error) {
@@ -170,10 +182,27 @@ func getConfig(credentialsFile string) (*oauth2.Config, error) {
   }
 
   // If modifying these scopes, delete your previously saved token.json.
-  config, err := google.ConfigFromJSON([]byte(b), drive.DriveMetadataReadonlyScope)
+  config, err := google.ConfigFromJSON([]byte(b), drive.DriveFileScope)
   if err != nil {
     log.Warn("Unable to parse client secret file to config")
     return nil, err
   }
   return config, nil
 }
+
+func createFile(service *drive.Service, name, content, parentId string) (*drive.File, error) {
+
+   f := &drive.File{
+      Name:     name,
+   }
+
+   ioContent := strings.NewReader(content)
+   file, err := service.Files.Create(f).Media(ioContent).Do()
+
+   if err != nil {
+      log.Debug("Could not create file: " + err.Error())
+      return nil, err
+   }
+
+   return file, nil
+ }

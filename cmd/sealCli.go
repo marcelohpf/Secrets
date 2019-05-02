@@ -20,7 +20,7 @@ var encryptCmd = &cobra.Command{
   Use:   "seal",
   Short: "encrpyt",
   Long: "encrypt",
-  Run: gencrypt,
+  Run: encrypt,
 }
 var decryptCmd = &cobra.Command{
   Use:   "unseal",
@@ -42,17 +42,9 @@ func init(){
   rootCmd.AddCommand(boxCmd)
 }
 
-func gencrypt(cmd *cobra.Command, args[]string) {
-  setupLog()
-  _, err := boxes.GReadBoxItem("", "", "secrets.vlt")
-  if err != nil {
-    log.Fatal(err.Error())
-    panic("Item not retrieved from drive")
-  }
-}
-
 func encrypt(cmd *cobra.Command, args[]string) {
   setupLog()
+
   key := crypto.GetKey(config.KeyPath, config.KeyName)
   // seal()
   text, err := boxes.ReadFromFile(config.InFile)
@@ -61,17 +53,33 @@ func encrypt(cmd *cobra.Command, args[]string) {
     panic("error")
   }
   ciphertext := crypto.Encrypt(text, key)
-  boxes.WriteBoxItem(config.BoxPath, config.BoxName, config.ItemName, ciphertext)
+  switch config.BackendStorage {
+    case "gdrive":
+      err := boxes.GWriteBoxItem("", "", config.ItemName, ciphertext)
+      if err != nil {
+        log.Fatal(err.Error())
+        panic("Item not retrieved from drive")
+      }
+    default:
+      boxes.WriteBoxItem(config.BoxPath, config.BoxName, config.ItemName, ciphertext)
+  }
 }
 
 func decrypt(cmd *cobra.Command, args[]string) {
   setupLog()
   key := crypto.GetKey(config.KeyPath, config.KeyName)
   // unseal
-  ciphertext, err := boxes.ReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)
+  var ciphertext string
+  var err error
+  switch config.BackendStorage {
+    case "gdrive":
+      ciphertext, err = boxes.GReadBoxItem("", "", config.ItemName)
+    default:
+      ciphertext, err = boxes.ReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)
+  }
   if err != nil {
     log.Fatal(err.Error())
-    panic("error")
+    panic("Item not retrieved item")
   }
   text := crypto.Decrypt(ciphertext, key)
   boxes.WriteIntoFile(config.OutFile, text)
