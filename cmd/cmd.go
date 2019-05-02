@@ -3,6 +3,8 @@ package cmd
 import (
   log "github.com/sirupsen/logrus"
   "github.com/spf13/cobra"
+  "secrets/config"
+  "fmt"
 )
 
 var rootCmd = &cobra.Command{
@@ -13,6 +15,10 @@ var rootCmd = &cobra.Command{
   Run: execute,
 }
 
+func init(){
+  rootCmd.PersistentFlags().BoolVar(&config.Verbose, "verbose", false, "Verbose mode")
+  rootCmd.PersistentFlags().BoolVar(&config.Debug, "debug", false, "Debug mode")
+}
 func Execute() {
   if err := rootCmd.Execute(); err != nil {
     log.Fatal(err)
@@ -21,5 +27,15 @@ func Execute() {
 
 func execute(cmd *cobra.Command, args[]string){
   fmt.Println("Use --help")
-  log.Info("Running on [host]:[port]...")
+  log.Info("Running on [host]:[port]...", config.Verbose, config.Debug)
+}
+
+func setupLog() {
+  if config.Verbose {
+    log.SetLevel(log.InfoLevel)
+  } else if config.Debug {
+    log.SetLevel(log.TraceLevel)
+  } else {
+    log.SetLevel(log.WarnLevel)
+  }
 }

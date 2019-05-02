@@ -19,7 +19,7 @@ var encryptCmd = &cobra.Command{
   Use:   "seal",
   Short: "encrpyt",
   Long: "encrypt",
-  Run: encrypt,
+  Run: gencrypt,
 }
 var decryptCmd = &cobra.Command{
   Use:   "unseal",
@@ -41,7 +41,13 @@ func init(){
   rootCmd.AddCommand(boxCmd)
 }
 
+func gencrypt(cmd *cobra.Command, args[]string) {
+  setupLog()
+  boxes.GReadBoxItem("", "", "secrets.vlt")
+}
+
 func encrypt(cmd *cobra.Command, args[]string) {
+  setupLog()
   key := crypto.GetKey(config.KeyPath, config.KeyName)
   // seal()
   text := boxes.ReadFromFile(config.InFile)
@@ -50,6 +56,7 @@ func encrypt(cmd *cobra.Command, args[]string) {
 }
 
 func decrypt(cmd *cobra.Command, args[]string) {
+  setupLog()
   key := crypto.GetKey(config.KeyPath, config.KeyName)
   // unseal
   ciphertext := boxes.ReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)

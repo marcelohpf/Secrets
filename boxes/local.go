@@ -23,7 +23,7 @@ func WriteBoxItem(boxPath, boxName, itemName, content string) {
 }
 
 func ReadFromFile(path string) string {
-  log.Debug("Open file descriptor")
+  log.Debug("Open file descriptor.", path)
   file, err := os.Open(path)
   if err != nil {
     log.Fatal(err.Error())
@@ -31,7 +31,7 @@ func ReadFromFile(path string) string {
   }
   defer file.Close()
 
-  log.Debug("Reading file content")
+  log.Debug("Reading file content.")
   content, err := ioutil.ReadAll(file)
   if err != nil {
     log.Fatal(err.Error())

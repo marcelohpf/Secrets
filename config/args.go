@@ -9,6 +9,8 @@ var (
   InFile string
   OutFile string
   SizeKey int
+  Verbose bool
+  Debug bool
 )
 
 const DefaultKeyPath string = "/home/marcelohpf/vault"

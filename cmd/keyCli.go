@@ -20,7 +20,9 @@ func init(){
   keyCmd.PersistentFlags().StringVar(&config.KeyName, "key", "vault.key", "Key name")
   rootCmd.AddCommand(keyCmd)
 }
+
 func genKey(cmd *cobra.Command, args[]string) {
+  setupLog()
   key := crypto.GenerateKey()
   crypto.SaveKey(config.KeyPath, config.KeyName, key)
 }
