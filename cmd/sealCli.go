@@ -45,14 +45,22 @@ func init(){
 func encrypt(cmd *cobra.Command, args[]string) {
   setupLog()
 
-  key := crypto.GetKey(config.KeyPath, config.KeyName)
-  // seal()
-  text, err := boxes.ReadFromFile(config.InFile)
+  key, err := crypto.GetKey(config.KeyPath, config.KeyName)
   if err != nil {
     log.Fatal(err.Error())
     panic("error")
   }
+
+  // seal()
+  text, err := boxes.ReadFromFile(config.InFile)
+
+  if err != nil {
+    log.Fatal(err.Error())
+    panic("error")
+  }
+
   ciphertext := crypto.Encrypt(text, key)
+
   switch config.BackendStorage {
     case "gdrive":
       err := boxes.GWriteBoxItem("", "", config.ItemName, ciphertext)
@@ -61,16 +69,22 @@ func encrypt(cmd *cobra.Command, args[]string) {
         panic("Item not retrieved from drive")
       }
     default:
-      boxes.WriteBoxItem(config.BoxPath, config.BoxName, config.ItemName, ciphertext)
+      if err := boxes.WriteBoxItem(config.BoxPath, config.BoxName, config.ItemName, ciphertext); err != nil {
+        log.Fatal(err)
+      }
   }
 }
 
 func decrypt(cmd *cobra.Command, args[]string) {
   setupLog()
-  key := crypto.GetKey(config.KeyPath, config.KeyName)
+  key, err := crypto.GetKey(config.KeyPath, config.KeyName)
+  if err != nil {
+    log.Fatal(err.Error())
+    panic("error")
+  }
+
   // unseal
   var ciphertext string
-  var err error
   switch config.BackendStorage {
     case "gdrive":
       ciphertext, err = boxes.GReadBoxItem("", "", config.ItemName)
