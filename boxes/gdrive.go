@@ -49,7 +49,7 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
     return "", err
   }
 
-  itemGId, err := getItemGId(boxPath, boxName, itemName, srv)
+  itemGId, err := getItemGId(srv, ROOTID, itemName)
   if err != nil {
     log.Debug("Something wrong happen when try retrieve item google id.")
     return "", err
@@ -86,10 +86,51 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
   if err != nil {
     log.Fatal(err.Error())
   }
-  return upsert(srv, boxPath, boxName, itemName, content)
+
+  return upsert(srv, ROOTID, itemName, content)
 }
 
-func createDir(service *drive.Service, name string, parentId string) (*drive.File, error) {
+func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error) {
+  finalPath := boxPath + "/" + boxName
+  finalPath = strings.Trim(finalPath, "/")
+
+  // there is no boxPath or boxName set use root dir
+  if finalPath == "" {
+    return ROOTID, nil
+  }
+
+  paths := strings.Split(finalPath, "/")
+
+  parentId := ROOTID
+  var subPath int
+  for subPath = 0; subPath < len(paths); subPath++ {
+    id, err := getItemGId(service, parentId, paths[subPath])
+    if err == notFound {
+      break
+    } else if err != nil {
+      return "", err
+    }
+    parentId = id
+  }
+
+  // it creates missing dirs or just return the parent id
+  return createDirs(service, parentId, paths[subPath:])
+}
+
+func createDirs(service *drive.Service, parentId string, names []string) (string, error) {
+
+  for _, name := range names {
+    dir, err := createDir(service, parentId, name)
+    if err != nil {
+      return "", err
+    }
+    parentId = dir.Id
+  }
+
+  return parentId, nil
+}
+
+func createDir(service *drive.Service, parentId, name string) (*drive.File, error) {
    d := &drive.File{
       Name:     name,
       MimeType: "application/vnd.google-apps.folder",
