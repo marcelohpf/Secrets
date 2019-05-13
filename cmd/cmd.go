@@ -4,6 +4,7 @@ import (
   log "github.com/sirupsen/logrus"
   "github.com/spf13/cobra"
   "secrets/config"
+  "secrets/boxes"
   "fmt"
 )
 
@@ -26,7 +27,14 @@ func Execute() {
 }
 
 func execute(cmd *cobra.Command, args[]string){
+  setupLog()
   fmt.Println("Use --help")
+  out, err := boxes.X("DOCs")
+  if err != nil {
+    log.Fatal(err.Error())
+  }
+  log.Debug("out", out)
+
   log.Info("Running on [host]:[port]...", config.Verbose, config.Debug)
 }
 
