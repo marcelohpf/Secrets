@@ -49,26 +49,18 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
     return "", err
   }
 
-  itemGId, err := getItemGId(srv, ROOTID, itemName)
+  parentId, err := getDirId(srv, boxPath, boxName)
+  if err != nil {
+    log.Debug("parent id not found")
+    return "", err
+  }
+
+  itemId, err := getItemGId(srv, parentId, itemName)
   if err != nil {
     log.Debug("Something wrong happen when try retrieve item google id.")
     return "", err
   }
-
-  http, err := srv.Files.Get(itemGId).Download()
-  if err != nil {
-    log.Debug("http drive file retrive", err)
-    return "", err
-  }
-
-  defer http.Body.Close()
-
-  buff := new(bytes.Buffer)
-  buff.ReadFrom(http.Body)
-  content := buff.String()
-
-  log.Debug(boxPath, boxName, itemName)
-  return content, nil
+  return fetchRemoteFile(srv, itemId)
 }
 
 // Write the content item into a file in the box path in subdir of box name
@@ -87,8 +79,56 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
     log.Fatal(err.Error())
   }
 
-  return upsert(srv, ROOTID, itemName, content)
+  parentId, err := ensureDirs(srv, boxPath, boxName)
+
+  if err != nil {
+    return err
+  }
+
+  return upsert(srv, parentId, itemName, content)
 }
+
+func fetchRemoteFile(service *drive.Service, itemId string) (string, error) {
+  log.Info("Fetching remote file", itemId)
+
+  http, err := service.Files.Get(itemId).Download()
+  if err != nil {
+    log.Debug("http drive file retrive", err)
+    return "", err
+  }
+  defer http.Body.Close()
+
+  buff := new(bytes.Buffer)
+  buff.ReadFrom(http.Body)
+  content := buff.String()
+
+  log.Info("File fetched with success")
+  return content, nil
+}
+
+func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
+  finalPath := boxPath + "/" + boxName
+  finalPath = strings.Trim(finalPath, "/")
+
+  // there is no boxPath or boxName set use root dir
+  if finalPath == "" {
+    log.Info("Final path is a empty string, using the root dir")
+    return ROOTID, nil
+  }
+
+  paths := strings.Split(finalPath, "/")
+
+  parentId := ROOTID
+  for _, path := range paths {
+    id, err := getItemGId(service, parentId, path)
+    if err != nil {
+      return "", err
+    }
+    parentId = id
+  }
+  return parentId, nil
+}
+
 
 func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error) {
   finalPath := boxPath + "/" + boxName
@@ -96,6 +136,7 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
 
   // there is no boxPath or boxName set use root dir
   if finalPath == "" {
+    log.Info("Final path is a empty string, using the root dir")
     return ROOTID, nil
   }
 
@@ -106,6 +147,7 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
   for subPath = 0; subPath < len(paths); subPath++ {
     id, err := getItemGId(service, parentId, paths[subPath])
     if err == notFound {
+      log.Warn("Subpath does not exists, it will try to create", paths[:subPath])
       break
     } else if err != nil {
       return "", err
@@ -113,8 +155,12 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
     parentId = id
   }
 
-  // it creates missing dirs or just return the parent id
-  return createDirs(service, parentId, paths[subPath:])
+  if subPath == len(paths) {
+    return parentId, nil
+  } else {
+    // it creates missing dirs or just return the parent id
+    return createDirs(service, parentId, paths[subPath:])
+  }
 }
 
 func createDirs(service *drive.Service, parentId string, names []string) (string, error) {
@@ -166,45 +212,6 @@ func upsert(service *drive.Service, parentId, itemName, content string) error {
     log.Debug("Create file", file.Id)
   }
   return nil
-}
-func X(itemName string) (string, error) {
-  gconfig, err := getConfig(config.CredentialsFile)
-  if err != nil {
-    log.Debug("Error to obtain config")
-    return "", err
-  }
-
-  token, err := getToken(gconfig)
-  ctx := context.Background()
-  srv, err := drive.NewService(ctx, option.WithTokenSource(gconfig.TokenSource(ctx, token)))
-
-  dir, err := createDir(srv, "coisa", "root")
-  dir2, err := createDir(srv, "boa", dir.Id)
-  dir3, err := createDir(srv, "xablau", dir2.Id)
-  file, err := createFile(srv, itemName, "xabluououije", dir3.Id)
-
-  if err != nil {
-    return "", err
-  }
-
-  r, err := srv.Files.List().PageSize(1).
-    Fields("nextPageToken, files(id, name)").
-    Q("name = '" + file.Name + "'").
-    Do()
-
-  if err != nil {
-    log.Debug("Unable to get id request")
-    return "", err
-  }
-
-  log.Debug(len(r.Files))
-
-  for _, f := range r.Files {
-    log.Debug(f.Name, f.Id)
-  }
-
-  return "", nil
-
 }
 
 // Retrieve a google id for a given item name
