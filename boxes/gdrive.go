@@ -18,7 +18,7 @@ import (
 
 var notFound = errors.New("Record not found.")
 var foundMany = errors.New("Found more then one record.")
-const ROOTID string = ""
+const ROOTID string = "root"
 
 // Refresh google auth token
 func GRefreshAuth() (*oauth2.Token, error) {
@@ -85,6 +85,8 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
     return err
   }
 
+  log.Debug("Creating file under ", parentId)
+
   return upsert(srv, parentId, itemName, content)
 }
 
@@ -120,12 +122,14 @@ func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
 
   parentId := ROOTID
   for _, path := range paths {
+    log.Debug("Get dir id for ", parentId, " / ", path)
     id, err := getItemGId(service, parentId, path)
     if err != nil {
       return "", err
     }
     parentId = id
   }
+  log.Debug("The id ", finalPath, " (", parentId, ")")
   return parentId, nil
 }
 
@@ -145,9 +149,10 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
   parentId := ROOTID
   var subPath int
   for subPath = 0; subPath < len(paths); subPath++ {
+    log.Debug("searching id for ", paths[subPath])
     id, err := getItemGId(service, parentId, paths[subPath])
     if err == notFound {
-      log.Warn("Subpath does not exists, it will try to create", paths[:subPath])
+      log.Warn("Subpath does not exists, it will try to create", paths[subPath:])
       break
     } else if err != nil {
       return "", err
@@ -156,6 +161,7 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
   }
 
   if subPath == len(paths) {
+    log.Debug("Subpath at the end ", parentId)
     return parentId, nil
   } else {
     // it creates missing dirs or just return the parent id
@@ -177,21 +183,22 @@ func createDirs(service *drive.Service, parentId string, names []string) (string
 }
 
 func createDir(service *drive.Service, parentId, name string) (*drive.File, error) {
-   d := &drive.File{
-      Name:     name,
-      MimeType: "application/vnd.google-apps.folder",
-      Parents:  []string{parentId},
-   }
+  log.Debug("Create dir for parent:name ", parentId, ":", name)
+  d := &drive.File{
+    Name:     name,
+    MimeType: "application/vnd.google-apps.folder",
+    Parents:  []string{parentId},
+  }
 
-   file, err := service.Files.Create(d).Do()
+  file, err := service.Files.Create(d).Do()
 
-   if err != nil {
-      log.Println("Could not create dir: " + err.Error())
-      return nil, err
-   }
+  if err != nil {
+    log.Println("Could not create dir: " + err.Error())
+    return nil, err
+  }
 
-   return file, nil
- }
+  return file, nil
+}
 
 // insert or update a item
 func upsert(service *drive.Service, parentId, itemName, content string) error {
@@ -199,31 +206,27 @@ func upsert(service *drive.Service, parentId, itemName, content string) error {
 
   // found item do a update
   if err == nil {
-    file, err := updateFile(service, gid, itemName, content, "root")
+    file, err := updateFile(service, gid, itemName, content)
     if err != nil {
       return err
     }
     log.Debug("Update file", file.Id)
-  } else { // some other error happens, try to create the file
-    file, err := createFile(service, itemName, content, "root")
+  } else { // some other error happens, try to create new the file
+    file, err := createFile(service, itemName, content, parentId)
     if err != nil {
       return err
     }
-    log.Debug("Create file", file.Id)
+    log.Debug("Created file: ", file.Parents, " / ", file.Id)
   }
   return nil
 }
 
 // Retrieve a google id for a given item name
-func getItemGId(service *drive.Service, itemName, parentId string) (string, error) {
-  log.Debug("Finding file on drive.")
-  flCall := service.Files.List().PageSize(1).
+func getItemGId(service *drive.Service, parentId, itemName string) (string, error) {
+  log.Debug("Finding file on drive ", parentId, " ", itemName)
+  flCall := service.Files.List().PageSize(10).
     Fields("nextPageToken, files(id, name)").
-    Q("name = '"+ itemName + "'")
-
-  if parentId != ROOTID {
-    flCall.Q("'" + parentId + "' in parents")
-  }
+    Q("name = '"+ itemName + "' and '" + parentId + "' in parents")
 
   r, err := flCall.Do()
 
@@ -232,13 +235,19 @@ func getItemGId(service *drive.Service, itemName, parentId string) (string, erro
     return "", err
   }
 
+  log.Debug("Found files ", len(r.Files))
+
   switch len(r.Files) {
   case 0:
-    log.Warn("Item not found on box.", parentId)
+    log.Warn("Item not found on box. ", parentId, " ", itemName)
     return "", notFound
   case 1:
+    log.Debug("Found the file ", parentId, " / ", r.Files[0].Id)
     return r.Files[0].Id, nil
   default: // should use the last one ordered by modification date
+    for _, f := range r.Files {
+      log.Debug("Files: ", parentId, " / ", f.Id, " (", f.Name, ")")
+    }
     return "", foundMany
   }
 }
@@ -319,21 +328,21 @@ func getConfig(credentialsFile string) (*oauth2.Config, error) {
   return config, nil
 }
 
-func updateFile(service *drive.Service, gid, name, content, parentId string) (*drive.File, error) {
-   f := &drive.File{
-      Name:     name,
-      Parents: []string{parentId},
-   }
+// update files not change the parent ID
+func updateFile(service *drive.Service, gid, name, content string) (*drive.File, error) {
+  f := &drive.File{
+    Name:     name,
+  }
 
-   ioContent := strings.NewReader(content)
-   file, err := service.Files.Update(gid, f).Media(ioContent).Do()
+  ioContent := strings.NewReader(content)
+  file, err := service.Files.Update(gid, f).Media(ioContent).Do()
 
-   if err != nil {
-      log.Debug("Could not update file: " + err.Error())
-      return nil, err
-   }
+  if err != nil {
+    log.Debug("Could not update file: " + err.Error())
+    return nil, err
+  }
 
-   return file, nil
+  return file, nil
 }
 
 func createFile(service *drive.Service, name, content, parentId string) (*drive.File, error) {

@@ -63,7 +63,7 @@ func encrypt(cmd *cobra.Command, args[]string) {
 
   switch config.BackendStorage {
     case "gdrive":
-      err := boxes.GWriteBoxItem("", "", config.ItemName, ciphertext)
+      err := boxes.GWriteBoxItem(config.BoxPath, config.BoxName, config.ItemName, ciphertext)
       if err != nil {
         log.Fatal(err.Error())
         panic("Item not retrieved from drive")
@@ -87,7 +87,7 @@ func decrypt(cmd *cobra.Command, args[]string) {
   var ciphertext string
   switch config.BackendStorage {
     case "gdrive":
-      ciphertext, err = boxes.GReadBoxItem("", "", config.ItemName)
+      ciphertext, err = boxes.GReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)
     default:
       ciphertext, err = boxes.ReadBoxItem(config.BoxPath, config.BoxName, config.ItemName)
   }
