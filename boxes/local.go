@@ -9,7 +9,11 @@ import (
 )
 
 func ReadBoxItem(boxPath, boxName, itemName string) (string, error) {
-  log.Info("Reading item from box")
+  log.WithFields(log.Fields{
+    "boxPath": boxPath,
+    "boxName": boxName,
+    "itemName": itemName,
+  }).Info("Reading item from box")
   box, err := mountBox(boxPath, boxName)
   if err != nil {
     return "", err
@@ -22,7 +26,11 @@ func ReadBoxItem(boxPath, boxName, itemName string) (string, error) {
 }
 
 func WriteBoxItem(boxPath, boxName, itemName, content string) error {
-  log.Info("Writing item into box")
+  log.WithFields(log.Fields{
+    "boxPath": boxPath,
+    "boxName": boxName,
+    "itemName": itemName,
+  }).Info("Writing item into box")
 
   box, err := mountBox(boxPath, boxName)
 
@@ -44,22 +52,32 @@ func ReadFromFile(path string) (string, error) {
     return "", err
   }
 
-  log.Debug("Open file descriptor.", absPath)
-  file, err := os.Open(path)
+  log.WithFields(log.Fields{
+    "file": absPath,
+  }).Debug("Open file descriptor.",)
+  file, err := os.Open(absPath)
   defer file.Close()
   if err != nil {
-    log.Debug("Problem to read file", path )
+    log.WithFields(log.Fields{
+      "file": absPath,
+    }).Debug("Problem to read file",)
     return "", err
   }
 
-  log.Debug("Reading file content.")
+  log.WithFields(log.Fields{
+    "file": absPath,
+  }).Debug("Reading file content.")
   content, err := ioutil.ReadAll(file)
   if err != nil {
-    log.Debug("Fail to read content of file.", path)
+    log.WithFields(log.Fields{
+      "file": absPath,
+    }).Debug("Fail to read content of file.")
     return "", err
   }
 
-  log.Debug("File content readed from file!")
+  log.WithFields(log.Fields{
+    "file": absPath,
+  }).Debug("File content readed from file!")
   return string(content), nil
 }
 
@@ -79,13 +97,19 @@ func WriteIntoFile(path, content string) error {
     return err
   }
 
-  log.Debug("Write bytes in file ")
+  log.WithFields(log.Fields{
+    "file": absPath,
+  }).Debug("Write bytes in file ")
   err = ioutil.WriteFile(path, byteContent, 384)
   if err != nil {
-    log.Debug(err)
+    log.WithFields(log.Fields{
+      "file": absPath,
+    }).Debug(err.Error())
     return err
   }
-  log.Debug("Bytes writed with success")
+  log.WithFields(log.Fields{
+    "file": absPath,
+  }).Debug("Bytes writed with success")
   return nil
 }
 
@@ -101,7 +125,10 @@ func mountBox(boxPath, boxName string) (string, error) {
   if boxName != "" {
     absPath = filepath.Join(absPath, boxName)
   } else {
-    log.Debug("No box was selected")
+    log.WithFields(log.Fields{
+      "boxPath": boxPath,
+      "boxName": boxName,
+    }).Debug("No box was selected")
   }
 
   return absPath, nil
@@ -113,7 +140,10 @@ func mountItem(box, itemName string) (string, error) {
     log.Debug("Empty item name")
     return "", errors.New("No item was selected.")
   }
-  log.Debug("Non item name", itemName)
+  log.WithFields(log.Fields{
+    "parentId": box,
+    "itemName": itemName,
+  }).Debug("Non item name", itemName)
 
   item := addSufix(filepath.Join(box, itemName))
 

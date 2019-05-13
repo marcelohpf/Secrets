@@ -31,7 +31,11 @@ func GRefreshAuth() (*oauth2.Token, error) {
 
 // Read a file from google drive
 func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
-  log.Info("Reading box item.")
+  log.WithFields(log.Fields{
+    "boxPath": boxPath,
+    "boxName": boxName,
+    "itemName": itemName,
+  }).Info("Reading google drive secret box ")
   gconfig, err := getConfig(config.CredentialsFile)
   if err != nil {
     return "", err
@@ -45,19 +49,30 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
   ctx := context.Background()
   srv, err := drive.NewService(ctx, option.WithTokenSource(gconfig.TokenSource(ctx, token)))
   if err != nil {
-    log.Warn("Could not initialize a google client.")
+    log.WithFields(log.Fields{
+      "boxPath": boxPath,
+      "boxName": boxName,
+      "itemName": itemName,
+    }).Warn("Could not initialize a google client.")
     return "", err
   }
 
   parentId, err := getDirId(srv, boxPath, boxName)
   if err != nil {
-    log.Debug("parent id not found")
+    log.WithFields(log.Fields{
+      "boxPath": boxPath,
+      "boxName": boxName,
+      "itemName": itemName,
+    }).Warn("Dir id not found")
     return "", err
   }
 
   itemId, err := getItemGId(srv, parentId, itemName)
   if err != nil {
-    log.Debug("Something wrong happen when try retrieve item google id.")
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": itemName,
+    }).Debug("Error happen when try get the google id ")
     return "", err
   }
   return fetchRemoteFile(srv, itemId)
@@ -85,17 +100,20 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
     return err
   }
 
-  log.Debug("Creating file under ", parentId)
+  log.WithFields(log.Fields{
+    "parentId": parentId,
+  }).Debug("Creating file")
 
   return upsert(srv, parentId, itemName, content)
 }
 
 func fetchRemoteFile(service *drive.Service, itemId string) (string, error) {
-  log.Info("Fetching remote file", itemId)
 
   http, err := service.Files.Get(itemId).Download()
   if err != nil {
-    log.Debug("http drive file retrive", err)
+    log.WithFields(log.Fields{
+      "itemName": itemId,
+    }).Debug("HTTP drive file retrive error ", itemId)
     return "", err
   }
   defer http.Body.Close()
@@ -104,7 +122,9 @@ func fetchRemoteFile(service *drive.Service, itemId string) (string, error) {
   buff.ReadFrom(http.Body)
   content := buff.String()
 
-  log.Info("File fetched with success")
+  log.WithFields(log.Fields{
+    "itemName": itemId,
+  }).Info("File fetched from google drive")
   return content, nil
 }
 
@@ -114,7 +134,10 @@ func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
 
   // there is no boxPath or boxName set use root dir
   if finalPath == "" {
-    log.Info("Final path is a empty string, using the root dir")
+    log.WithFields(log.Fields{
+      "boxPath": boxPath,
+      "boxName": boxName,
+    }).Info("Final path is a empty string, using the root dir")
     return ROOTID, nil
   }
 
@@ -122,14 +145,19 @@ func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
 
   parentId := ROOTID
   for _, path := range paths {
-    log.Debug("Get dir id for ", parentId, " / ", path)
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": path,
+    }).Debug("Get dir id")
     id, err := getItemGId(service, parentId, path)
     if err != nil {
       return "", err
     }
     parentId = id
   }
-  log.Debug("The id ", finalPath, " (", parentId, ")")
+  log.WithFields(log.Fields{
+    "parentId": parentId,
+    "itemName": finalPath}).Debug("Found the final id")
   return parentId, nil
 }
 
@@ -140,7 +168,10 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
 
   // there is no boxPath or boxName set use root dir
   if finalPath == "" {
-    log.Info("Final path is a empty string, using the root dir")
+    log.WithFields(log.Fields{
+      "boxPath": boxPath,
+      "boxName": boxName,
+    }).Info("Final path is a empty string, using the root dir")
     return ROOTID, nil
   }
 
@@ -149,10 +180,16 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
   parentId := ROOTID
   var subPath int
   for subPath = 0; subPath < len(paths); subPath++ {
-    log.Debug("searching id for ", paths[subPath])
+    log.WithFields(log.Fields{
+      "boxPath": boxPath,
+      "boxName": boxName,
+    }).Debug("Searching id ", paths[subPath])
     id, err := getItemGId(service, parentId, paths[subPath])
     if err == notFound {
-      log.Warn("Subpath does not exists, it will try to create", paths[subPath:])
+      log.WithFields(log.Fields{
+        "boxPath": boxPath,
+        "boxName": boxName,
+      }).Warn("Subpath does not exists, it will try to create ", strings.Join(paths[subPath:], "/"))
       break
     } else if err != nil {
       return "", err
@@ -161,7 +198,8 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
   }
 
   if subPath == len(paths) {
-    log.Debug("Subpath at the end ", parentId)
+    log.WithFields(log.Fields{
+      "parentId": parentId}).Debug("Subpath final parent id ", parentId)
     return parentId, nil
   } else {
     // it creates missing dirs or just return the parent id
@@ -179,11 +217,19 @@ func createDirs(service *drive.Service, parentId string, names []string) (string
     parentId = dir.Id
   }
 
+  log.WithFields(log.Fields{
+    "parentId": parentId,
+    "itemName": strings.Join(names, "/"),
+  }).Info("Created missing paths")
+
   return parentId, nil
 }
 
 func createDir(service *drive.Service, parentId, name string) (*drive.File, error) {
-  log.Debug("Create dir for parent:name ", parentId, ":", name)
+  log.WithFields(log.Fields{
+    "parentId": parentId,
+    "itemName": name,
+  }).Debug("Creating folder ")
   d := &drive.File{
     Name:     name,
     MimeType: "application/vnd.google-apps.folder",
@@ -193,7 +239,10 @@ func createDir(service *drive.Service, parentId, name string) (*drive.File, erro
   file, err := service.Files.Create(d).Do()
 
   if err != nil {
-    log.Println("Could not create dir: " + err.Error())
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": name,
+    }).Debug("Could not create dir")
     return nil, err
   }
 
@@ -210,43 +259,69 @@ func upsert(service *drive.Service, parentId, itemName, content string) error {
     if err != nil {
       return err
     }
-    log.Debug("Update file", file.Id)
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": file.Id,
+      "name": file.Name,
+    }).Info("Update file")
   } else { // some other error happens, try to create new the file
     file, err := createFile(service, itemName, content, parentId)
     if err != nil {
       return err
     }
-    log.Debug("Created file: ", file.Parents, " / ", file.Id)
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": file.Id,
+      "name": file.Name,
+    }).Info("Created file ")
   }
   return nil
 }
 
 // Retrieve a google id for a given item name
 func getItemGId(service *drive.Service, parentId, itemName string) (string, error) {
-  log.Debug("Finding file on drive ", parentId, " ", itemName)
+  log.WithFields(log.Fields{
+    "parentId": parentId,
+    "itemName": itemName,
+  }).Debug("Finding file on drive")
   flCall := service.Files.List().PageSize(10).
-    Fields("nextPageToken, files(id, name)").
+    Fields("files(id, name)").
     Q("name = '"+ itemName + "' and '" + parentId + "' in parents")
 
   r, err := flCall.Do()
 
   if  err != nil {
-    log.Debug("Unable to get id request")
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": itemName,
+    }).Debug("Unable to get id request")
     return "", err
   }
 
-  log.Debug("Found files ", len(r.Files))
+  log.WithFields(log.Fields{
+    "parentId": parentId,
+    "itemName": itemName,
+  }).Debug("Found files ", len(r.Files))
 
   switch len(r.Files) {
   case 0:
-    log.Warn("Item not found on box. ", parentId, " ", itemName)
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": itemName,
+    }).Warn("Item not found on box. ")
     return "", notFound
   case 1:
-    log.Debug("Found the file ", parentId, " / ", r.Files[0].Id)
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": r.Files[0].Id,
+    }).Debug("Found the file ")
     return r.Files[0].Id, nil
   default: // should use the last one ordered by modification date
     for _, f := range r.Files {
-      log.Debug("Files: ", parentId, " / ", f.Id, " (", f.Name, ")")
+      log.WithFields(log.Fields{
+        "parentId": parentId,
+        "itemName": f.Name,
+      }).Debug("Files: ", parentId, " / ", f.Id, " (", f.Name, ")")
     }
     return "", foundMany
   }
@@ -294,18 +369,24 @@ func getTokenFromWeb(oauthConfig *oauth2.Config) *oauth2.Token {
 func tokenFromFile(file string) (*oauth2.Token, error) {
   jsonToken, err := ReadFromFile(file)
   if err != nil {
-    log.Warn("Token not retrieved from file")
+    log.WithFields(log.Fields{
+      "file": file,
+    }).Warn("Token not retrieved from file")
     return nil, err
   }
   tok := &oauth2.Token{}
   err = json.Unmarshal([]byte(jsonToken), tok)
   if err != nil {
-    log.Warn("Could not Unmarshal json token")
+    log.WithFields(log.Fields{
+      "file": file,
+    }).Warn("Could not Unmarshal json token")
     return nil, err
   }
 
   if tok.Valid() {
-    log.Debug("Token from file is ok!")
+    log.WithFields(log.Fields{
+      "file": file,
+    }).Debug("Token from file is ok!")
     return tok, nil
   } else {
     return nil, errors.New("Token is invalid or expired")
@@ -322,7 +403,9 @@ func getConfig(credentialsFile string) (*oauth2.Config, error) {
   // If modifying these scopes, delete your previously saved token.json.
   config, err := google.ConfigFromJSON([]byte(b), drive.DriveFileScope)
   if err != nil {
-    log.Warn("Unable to parse client secret file to config")
+    log.WithFields(log.Fields{
+      "file": credentialsFile,
+    }).Warn("Unable to parse client secret file to config")
     return nil, err
   }
   return config, nil
@@ -338,7 +421,10 @@ func updateFile(service *drive.Service, gid, name, content string) (*drive.File,
   file, err := service.Files.Update(gid, f).Media(ioContent).Do()
 
   if err != nil {
-    log.Debug("Could not update file: " + err.Error())
+    log.WithFields(log.Fields{
+      "itemName": gid,
+      "name": name,
+    }).Debug("Could not update file: " + err.Error())
     return nil, err
   }
 
@@ -355,7 +441,10 @@ func createFile(service *drive.Service, name, content, parentId string) (*drive.
   file, err := service.Files.Create(f).Media(ioContent).Do()
 
   if err != nil {
-    log.Debug("Could not create file: " + err.Error())
+    log.WithFields(log.Fields{
+      "parentId": parentId,
+      "itemName": name,
+    }).Debug("Could not create file")
     return nil, err
   }
 
