@@ -13,9 +13,9 @@ var (
   Debug bool
 )
 
-const DefaultKeyPath string = "/home/marcelohpf/vault"
-const DefaultBoxPath string = "/home/marcelohpf/vault"
+const DefaultKeyPath string = "vault"
+const DefaultBoxPath string = "vault"
 
-var TokenFile string = "/home/marcelohpf/.config/vault/token.json"
-var CredentialsFile string = "/home/marcelohpf/.config/vault/credentials.json"
+var TokenFile string = "~/.config/vault/token.json"
+var CredentialsFile string = "~/.config/vault/credentials.json"
 var BackendStorage string = "gdrive"

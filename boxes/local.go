@@ -2,6 +2,8 @@ package boxes
 
 import (
   "os"
+  "os/user"
+  "strings"
   log "github.com/sirupsen/logrus"
   "io/ioutil"
   "path/filepath"
@@ -47,7 +49,9 @@ func WriteBoxItem(boxPath, boxName, itemName, content string) error {
 }
 
 func ReadFromFile(path string) (string, error) {
-  absPath, err := filepath.Abs(path)
+
+  absPath, err := dirExpansion(path)
+
   if err != nil {
     return "", err
   }
@@ -84,7 +88,7 @@ func ReadFromFile(path string) (string, error) {
 func WriteIntoFile(path, content string) error {
   byteContent := []byte(content)
 
-  absPath, err := filepath.Abs(path)
+  absPath, err := dirExpansion(path)
   if err != nil {
     return err
   }
@@ -114,9 +118,8 @@ func WriteIntoFile(path, content string) error {
 }
 
 func mountBox(boxPath, boxName string) (string, error) {
-  cleanPath := filepath.Clean(boxPath)
 
-  absPath, err := filepath.Abs(cleanPath)
+  absPath, err := dirExpansion(boxPath)
 
   if err != nil {
     return "", err
@@ -156,4 +159,16 @@ func addSufix(box string) (string) {
     return box + ".vlt"
   }
   return box
+}
+
+func dirExpansion(path string) (string, error) {
+  // This is a function to expand to absolute path in Unix System like
+
+  if strings.HasPrefix(path, "~/") {
+    user, _ := user.Current()
+    dir := user.HomeDir
+    return filepath.Join(dir, path[2:]), nil
+  }
+  return filepath.Abs(path)
+
 }
