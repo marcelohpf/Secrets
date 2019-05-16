@@ -94,7 +94,7 @@ func WriteIntoFile(path, content string) error {
   }
 
   dir := filepath.Dir(absPath)
-  err = os.MkdirAll(dir, 0777)
+  err = os.MkdirAll(dir, 0755)
 
   if err != nil {
     log.Debug(err.Error())
@@ -104,7 +104,9 @@ func WriteIntoFile(path, content string) error {
   log.WithFields(log.Fields{
     "file": absPath,
   }).Debug("Write bytes in file ")
-  err = ioutil.WriteFile(path, byteContent, 384)
+
+  err = ioutil.WriteFile(absPath, byteContent, 384)
+
   if err != nil {
     log.WithFields(log.Fields{
       "file": absPath,

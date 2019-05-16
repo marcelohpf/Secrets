@@ -346,6 +346,7 @@ func getItemGId(service *drive.Service, parentId, itemName string) (string, erro
 func getToken(oauthConfig *oauth2.Config) (*oauth2.Token, error) {
   token, err := tokenFromFile(config.TokenFile)
   if err != nil {
+    log.Error(err.Error())
     return refreshToken(oauthConfig)
   }
   return token, nil
@@ -359,14 +360,14 @@ func refreshToken(oauthConfig *oauth2.Config) (*oauth2.Token, error) {
     log.Debug("Could not parse the token")
     return nil, err
   }
-  WriteIntoFile(config.TokenFile, string(tokenJson))
-  return token, nil
+  err = WriteIntoFile(config.TokenFile, string(tokenJson))
+  return token, err
 }
 
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(oauthConfig *oauth2.Config) *oauth2.Token {
   authURL := oauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-  fmt.Printf("Auhtorization URL\n%v\nAuthorization code:\n", authURL)
+  fmt.Printf("Authorization URL\n%v\nAuthorization code:\n", authURL)
 
   var authCode string
   if _, err := fmt.Scan(&authCode); err != nil {
@@ -467,8 +468,6 @@ func createFile(service *drive.Service, name, content, parentId string) (*drive.
 }
 
 func gdirExpansion(path string) (string, error) {
-  if strings.HasPrefix(path, "~/") {
-    return path[2:], nil
-  }
-  return path, nil
+
+  return strings.Trim(path, "~/"), nil
 }
