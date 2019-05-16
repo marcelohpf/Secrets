@@ -67,6 +67,12 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
     return "", err
   }
 
+  if itemName != "" {
+    itemName = addSufix(itemName)
+  } else {
+    return "", errors.New("Item name not defined")
+  }
+
   itemId, err := getItemGId(srv, parentId, itemName)
   if err != nil {
     log.WithFields(log.Fields{
@@ -103,6 +109,12 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
   log.WithFields(log.Fields{
     "parentId": parentId,
   }).Debug("Creating file")
+
+  if itemName != "" {
+    itemName = addSufix(itemName)
+  } else {
+    return errors.New("Item name not defined")
+  }
 
   return upsert(srv, parentId, itemName, content)
 }
