@@ -141,7 +141,9 @@ func fetchRemoteFile(service *drive.Service, itemId string) (string, error) {
 }
 
 func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
-  finalPath := boxPath + "/" + boxName
+
+  path, _ := gdirExpansion(boxPath)
+  finalPath :=  path + "/" + boxName
   finalPath = strings.Trim(finalPath, "/")
 
   // there is no boxPath or boxName set use root dir
@@ -175,7 +177,8 @@ func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
 
 
 func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error) {
-  finalPath := boxPath + "/" + boxName
+  path, _ := gdirExpansion(boxPath)
+  finalPath := path + "/" + boxName
   finalPath = strings.Trim(finalPath, "/")
 
   // there is no boxPath or boxName set use root dir
@@ -461,4 +464,11 @@ func createFile(service *drive.Service, name, content, parentId string) (*drive.
   }
 
   return file, nil
+}
+
+func gdirExpansion(path string) (string, error) {
+  if strings.HasPrefix(path, "~/") {
+    return path[2:], nil
+  }
+  return path, nil
 }

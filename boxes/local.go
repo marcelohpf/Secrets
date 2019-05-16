@@ -170,5 +170,4 @@ func dirExpansion(path string) (string, error) {
     return filepath.Join(dir, path[2:]), nil
   }
   return filepath.Abs(path)
-
 }

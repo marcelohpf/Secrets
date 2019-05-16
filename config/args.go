@@ -13,8 +13,8 @@ var (
   Debug bool
 )
 
-const DefaultKeyPath string = "vault"
-const DefaultBoxPath string = "vault"
+const DefaultKeyPath string = "~/vault/boxes"
+const DefaultBoxPath string = "~/vault/boxes"
 
 var TokenFile string = "~/.config/vault/token.json"
 var CredentialsFile string = "~/.config/vault/credentials.json"
