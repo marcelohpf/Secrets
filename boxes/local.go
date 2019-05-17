@@ -10,37 +10,39 @@ import (
   "errors"
 )
 
-func ReadBoxItem(boxPath, boxName, itemName string) (string, error) {
+type LocalBox Box
+
+func (box LocalBox) ReadBoxItem() (string, error) {
   log.WithFields(log.Fields{
-    "boxPath": boxPath,
-    "boxName": boxName,
-    "itemName": itemName,
+    "boxPath": box.boxPath,
+    "boxName": box.boxName,
+    "itemName": box.itemName,
   }).Info("Reading item from box")
-  box, err := mountBox(boxPath, boxName)
+  boxDir, err := mountBox(box)
   if err != nil {
     return "", err
   }
-  item, err := mountItem(box, itemName)
+  item, err := mountItem(boxDir, box.itemName)
   if err != nil {
     return "", err
   }
   return ReadFromFile(item)
 }
 
-func WriteBoxItem(boxPath, boxName, itemName, content string) error {
+func (box LocalBox) WriteBoxItem(content string) error {
   log.WithFields(log.Fields{
-    "boxPath": boxPath,
-    "boxName": boxName,
-    "itemName": itemName,
+    "boxPath": box.boxPath,
+    "boxName": box.boxName,
+    "itemName": box.itemName,
   }).Info("Writing item into box")
 
-  box, err := mountBox(boxPath, boxName)
+  boxDir, err := mountBox(box)
 
   if err != nil {
     return err
   }
 
-  item, err := mountItem(box, itemName)
+  item, err := mountItem(boxDir, box.itemName)
 
   if err != nil {
     return err
@@ -119,20 +121,20 @@ func WriteIntoFile(path, content string) error {
   return nil
 }
 
-func mountBox(boxPath, boxName string) (string, error) {
+func mountBox(box LocalBox) (string, error) {
 
-  absPath, err := dirExpansion(boxPath)
+  absPath, err := dirExpansion(box.boxPath)
 
   if err != nil {
     return "", err
   }
 
-  if boxName != "" {
-    absPath = filepath.Join(absPath, boxName)
+  if box.boxName != "" {
+    absPath = filepath.Join(absPath, box.boxName)
   } else {
     log.WithFields(log.Fields{
-      "boxPath": boxPath,
-      "boxName": boxName,
+      "boxPath": box.boxPath,
+      "boxName": box.boxName,
     }).Debug("No box was selected")
   }
 

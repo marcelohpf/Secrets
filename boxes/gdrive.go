@@ -20,6 +20,8 @@ var notFound = errors.New("Record not found.")
 var foundMany = errors.New("Found more then one record.")
 const ROOTID string = "root"
 
+type DriveBox Box
+
 // Refresh google auth token
 func GRefreshAuth() (*oauth2.Token, error) {
   oauthConfig, err := getConfig(config.CredentialsFile)
@@ -30,11 +32,11 @@ func GRefreshAuth() (*oauth2.Token, error) {
 }
 
 // Read a file from google drive
-func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
+func (box DriveBox) ReadBoxItem() (string, error) {
   log.WithFields(log.Fields{
-    "boxPath": boxPath,
-    "boxName": boxName,
-    "itemName": itemName,
+    "boxPath": box.boxPath,
+    "boxName": box.boxName,
+    "itemName": box.itemName,
   }).Info("Reading google drive secret box ")
   gconfig, err := getConfig(config.CredentialsFile)
   if err != nil {
@@ -50,34 +52,33 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
   srv, err := drive.NewService(ctx, option.WithTokenSource(gconfig.TokenSource(ctx, token)))
   if err != nil {
     log.WithFields(log.Fields{
-      "boxPath": boxPath,
-      "boxName": boxName,
-      "itemName": itemName,
+      "boxPath": box.boxPath,
+      "boxName": box.boxName,
+      "itemName": box.itemName,
     }).Warn("Could not initialize a google client.")
     return "", err
   }
 
-  parentId, err := getDirId(srv, boxPath, boxName)
+  parentId, err := getDirId(srv, box)
   if err != nil {
     log.WithFields(log.Fields{
-      "boxPath": boxPath,
-      "boxName": boxName,
-      "itemName": itemName,
+      "boxPath": box.boxPath,
+      "boxName": box.boxName,
+      "itemName": box.itemName,
     }).Warn("Dir id not found")
     return "", err
   }
 
-  if itemName != "" {
-    itemName = addSufix(itemName)
-  } else {
+  if box.itemName == "" {
     return "", errors.New("Item name not defined")
   }
 
-  itemId, err := getItemGId(srv, parentId, itemName)
+  item := addSufix(box.itemName)
+  itemId, err := getItemGId(srv, parentId, item)
   if err != nil {
     log.WithFields(log.Fields{
       "parentId": parentId,
-      "itemName": itemName,
+      "itemName": item,
     }).Debug("Error happen when try get the google id ")
     return "", err
   }
@@ -85,7 +86,7 @@ func GReadBoxItem(boxPath, boxName, itemName string) (string, error) {
 }
 
 // Write the content item into a file in the box path in subdir of box name
-func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
+func (box DriveBox) WriteBoxItem(content string) error {
 
   gconfig, err := getConfig(config.CredentialsFile)
   if err != nil {
@@ -100,7 +101,7 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
     log.Fatal(err.Error())
   }
 
-  parentId, err := ensureDirs(srv, boxPath, boxName)
+  parentId, err := ensureDirs(srv, box)
 
   if err != nil {
     return err
@@ -110,13 +111,12 @@ func GWriteBoxItem(boxPath, boxName, itemName, content string) error {
     "parentId": parentId,
   }).Debug("Creating file")
 
-  if itemName != "" {
-    itemName = addSufix(itemName)
-  } else {
+  if box.itemName == "" {
     return errors.New("Item name not defined")
   }
 
-  return upsert(srv, parentId, itemName, content)
+  item := addSufix(box.itemName)
+  return upsert(srv, parentId, item, content)
 }
 
 func fetchRemoteFile(service *drive.Service, itemId string) (string, error) {
@@ -140,17 +140,17 @@ func fetchRemoteFile(service *drive.Service, itemId string) (string, error) {
   return content, nil
 }
 
-func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
+func getDirId(service *drive.Service, box DriveBox) (string, error) {
 
-  path, _ := gdirExpansion(boxPath)
-  finalPath :=  path + "/" + boxName
+  path, _ := gdirExpansion(box.boxPath)
+  finalPath :=  path + "/" + box.boxName
   finalPath = strings.Trim(finalPath, "/")
 
   // there is no boxPath or boxName set use root dir
   if finalPath == "" {
     log.WithFields(log.Fields{
-      "boxPath": boxPath,
-      "boxName": boxName,
+      "boxPath": box.boxPath,
+      "boxName": box.boxName,
     }).Info("Final path is a empty string, using the root dir")
     return ROOTID, nil
   }
@@ -171,21 +171,22 @@ func getDirId(service *drive.Service, boxPath, boxName string) (string, error) {
   }
   log.WithFields(log.Fields{
     "parentId": parentId,
-    "itemName": finalPath}).Debug("Found the final id")
+    "itemName": finalPath,
+  }).Debug("Found the final id")
   return parentId, nil
 }
 
 
-func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error) {
-  path, _ := gdirExpansion(boxPath)
-  finalPath := path + "/" + boxName
+func ensureDirs(service *drive.Service, box DriveBox) (string, error) {
+  path, _ := gdirExpansion(box.boxPath)
+  finalPath := path + "/" + box.boxName
   finalPath = strings.Trim(finalPath, "/")
 
   // there is no boxPath or boxName set use root dir
   if finalPath == "" {
     log.WithFields(log.Fields{
-      "boxPath": boxPath,
-      "boxName": boxName,
+      "boxPath": box.boxPath,
+      "boxName": box.boxName,
     }).Info("Final path is a empty string, using the root dir")
     return ROOTID, nil
   }
@@ -196,14 +197,14 @@ func ensureDirs(service *drive.Service, boxPath, boxName string) (string, error)
   var subPath int
   for subPath = 0; subPath < len(paths); subPath++ {
     log.WithFields(log.Fields{
-      "boxPath": boxPath,
-      "boxName": boxName,
+      "boxPath": box.boxPath,
+      "boxName": box.boxName,
     }).Debug("Searching id ", paths[subPath])
     id, err := getItemGId(service, parentId, paths[subPath])
     if err == notFound {
       log.WithFields(log.Fields{
-        "boxPath": boxPath,
-        "boxName": boxName,
+        "boxPath": box.boxPath,
+        "boxName": box.boxName,
       }).Warn("Subpath does not exists, it will try to create ", strings.Join(paths[subPath:], "/"))
       break
     } else if err != nil {
@@ -468,6 +469,5 @@ func createFile(service *drive.Service, name, content, parentId string) (*drive.
 }
 
 func gdirExpansion(path string) (string, error) {
-
   return strings.Trim(path, "~/"), nil
 }
