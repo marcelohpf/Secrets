@@ -44,7 +44,7 @@ func SaveKey(keyPath, keyName, key string) error {
 
     absPath, err := filepath.Abs(keyPath)
     log.Debug("Creating dir ", absPath)
-    err = os.MkdirAll(absPath, 0777)
+    err = os.MkdirAll(absPath, 0755)
 
     if err != nil {
       log.Debug(err.Error())

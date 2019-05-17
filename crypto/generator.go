@@ -13,7 +13,7 @@ func GenerateKey() string {
   log.Debug("Validate Key Size")
   if config.SizeKey != 16 && config.SizeKey != 32 {
     log.Fatal("Key should have size of 16 or 32 bytes.")
-    panic("eerrr0r")
+    panic("Error")
   }
 
   key := generate(config.SizeKey)
