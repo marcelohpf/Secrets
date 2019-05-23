@@ -59,7 +59,7 @@ func encrypt(cmd *cobra.Command, args []string) {
 
 	ciphertext := crypto.Encrypt(text, key)
 
-	box := boxes.Builder(config.BoxPath, config.BoxName, config.ItemName)
+	box := boxes.Builder(config.BoxPath, config.BoxName, config.ItemName, nil)
 	err = box.WriteBoxItem(ciphertext)
 	if err != nil {
 		log.Fatal(err.Error())
@@ -76,7 +76,7 @@ func decrypt(cmd *cobra.Command, args []string) {
 		panic("error")
 	}
 
-	box := boxes.Builder(config.BoxPath, config.BoxName, config.ItemName)
+	box := boxes.Builder(config.BoxPath, config.BoxName, config.ItemName, nil)
 
 	// unseal
 	ciphertext, err := box.ReadBoxItem()

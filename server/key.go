@@ -19,6 +19,9 @@ var genKeyRouter = Route{
 
 func GenKeyHandler(w http.ResponseWriter, r *http.Request) {
 	log.Debug("Processing gen key http handler")
-	key := crypto.GenerateKey()
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		fmt.Fprintf(w, "{\"msg\": \"failed to generate key\"}", key)
+	}
 	fmt.Fprintf(w, "{\"key\": \"%s\"}", key)
 }

@@ -1,6 +1,7 @@
 package boxes
 
 import (
+	"golang.org/x/oauth2"
 	"secrets/config"
 )
 
@@ -15,13 +16,16 @@ type Box struct {
 	itemName string `json:item_name`
 }
 
-func Builder(boxPath, boxName, itemName string) Vault {
+func Builder(boxPath, boxName, itemName string, token *oauth2.Token) Vault {
 	switch config.BackendStorage {
 	case "gdrive":
 		return DriveBox{
-			boxPath:  boxPath,
-			boxName:  boxName,
-			itemName: itemName,
+			Box{
+				boxPath:  boxPath,
+				boxName:  boxName,
+				itemName: itemName,
+			},
+			token,
 		}
 	default:
 		return LocalBox{

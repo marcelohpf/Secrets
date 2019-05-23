@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/oauth2"
 	"net/http"
 	"secrets/boxes"
 	"secrets/config"
@@ -11,10 +12,11 @@ import (
 )
 
 type boxArgs struct {
-	Content  string `json:"content"`
-	BoxName  string `json:"boxName"`
-	ItemName string `json:"itemName"`
-	Key      string `json:"key"`
+	Content  string        `json:"content"`
+	BoxName  string        `json:"boxName"`
+	ItemName string        `json:"itemName"`
+	Key      string        `json:"key"`
+	Token    *oauth2.Token `json:"token"`
 }
 
 func init() {
@@ -37,7 +39,8 @@ var unsealRoute = Route{
 func boxHandler(args boxArgs) boxes.Vault {
 	boxName := args.BoxName
 	itemName := args.ItemName
-	return boxes.Builder(config.BoxPath, boxName, itemName)
+	token := args.Token
+	return boxes.Builder(config.BoxPath, boxName, itemName, token)
 }
 
 func sealHandler(w http.ResponseWriter, r *http.Request) {

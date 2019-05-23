@@ -40,7 +40,10 @@ func init() {
 
 func genKey(cmd *cobra.Command, args []string) {
 	setupLog()
-	key := crypto.GenerateKey()
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
 	if err := crypto.SaveKey(config.KeyPath, config.KeyName, key); err != nil {
 		log.Fatal(err)
 	}

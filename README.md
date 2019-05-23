@@ -53,7 +53,7 @@ diff ./plain_in.txt ./plain_out.txt
 - [x] Seal/Unseal boxes in a cloud storage
 - [x] Configure a cloud storage
 - [ ] Allow user key definition
-- [ ] Creates a HTTP server
+- [x] Creates a HTTP server
 - [ ] Creates REST API to seal/unseal
 - [ ] Create a docker for the HTTP server
 - [ ] Create a config file
