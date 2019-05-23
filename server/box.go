@@ -11,7 +11,7 @@ import (
 	"secrets/crypto"
 )
 
-type boxArgs struct {
+type BoxArgs struct {
 	Content  string        `json:"content"`
 	BoxName  string        `json:"boxName"`
 	ItemName string        `json:"itemName"`
@@ -36,7 +36,7 @@ var unsealRoute = Route{
 	documentation: "seal a content into a box",
 }
 
-func boxHandler(args boxArgs) boxes.Vault {
+func boxHandler(args BoxArgs) boxes.Vault {
 	boxName := args.BoxName
 	itemName := args.ItemName
 	token := args.Token
@@ -44,7 +44,7 @@ func boxHandler(args boxArgs) boxes.Vault {
 }
 
 func sealHandler(w http.ResponseWriter, r *http.Request) {
-	var args boxArgs
+	var args BoxArgs
 	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
 		log.Debug("Problem decoding body request")
 	}
@@ -61,7 +61,7 @@ func sealHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func unsealHandler(w http.ResponseWriter, r *http.Request) {
-	var args boxArgs
+	var args BoxArgs
 	if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
 		log.Debug("Problem decoding body request")
 	}
@@ -76,5 +76,6 @@ func unsealHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	plainText := crypto.Decrypt(content, args.Key)
-	fmt.Fprintf(w, "{\"msg\": \"readed\", \"content\": \"%s\"}", plainText)
+	encoded, _ := json.Marshal(plainText)
+	fmt.Fprintf(w, "{\"msg\": \"readed\", \"content\": %s}", string(encoded))
 }

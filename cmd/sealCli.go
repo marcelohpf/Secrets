@@ -1,11 +1,15 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"net/http"
 	"secrets/boxes"
 	"secrets/config"
 	"secrets/crypto"
+	"secrets/server"
 )
 
 var boxCmd = &cobra.Command{
@@ -46,24 +50,42 @@ func encrypt(cmd *cobra.Command, args []string) {
 	key, err := crypto.GetKey(config.KeyPath, config.KeyName)
 	if err != nil {
 		log.Fatal(err.Error())
-		panic("error")
+		return
 	}
 
-	// seal
 	text, err := boxes.ReadFromFile(config.InFile)
 
 	if err != nil {
 		log.Fatal(err.Error())
-		panic("error")
+		return
 	}
 
-	ciphertext := crypto.Encrypt(text, key)
-
-	box := boxes.Builder(config.BoxPath, config.BoxName, config.ItemName, nil)
-	err = box.WriteBoxItem(ciphertext)
+	token, err := boxes.TokenFromFile(config.TokenFile)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
+		return
 	}
+	body := server.BoxArgs{Key: key, Content: text, BoxName: config.BoxName, ItemName: config.ItemName, Token: token}
+
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	r, err := http.Post("http://"+config.Server+":"+config.Port+"/box/seal", "application/json", bytes.NewBuffer(jsonBody))
+
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	var data map[string]string
+	if err = json.NewDecoder(r.Body).Decode(&data); err != nil {
+		log.Fatal(err)
+		return
+	}
+	log.Info(data)
 }
 
 func decrypt(cmd *cobra.Command, args []string) {
@@ -76,16 +98,32 @@ func decrypt(cmd *cobra.Command, args []string) {
 		panic("error")
 	}
 
-	box := boxes.Builder(config.BoxPath, config.BoxName, config.ItemName, nil)
+	token, err := boxes.TokenFromFile(config.TokenFile)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
-	// unseal
-	ciphertext, err := box.ReadBoxItem()
+	body := server.BoxArgs{Key: key, BoxName: config.BoxName, ItemName: config.ItemName, Token: token}
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	r, err := http.Post("http://"+config.Server+":"+config.Port+"/box/unseal", "application/json", bytes.NewBuffer(jsonBody))
 
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Fatal(err)
 		panic("Item not retrieved item")
 	}
 
-	text := crypto.Decrypt(ciphertext, key)
-	boxes.WriteIntoFile(config.OutFile, text)
+	var data map[string]string
+
+	if err = json.NewDecoder(r.Body).Decode(&data); err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	boxes.WriteIntoFile(config.OutFile, data["content"])
 }

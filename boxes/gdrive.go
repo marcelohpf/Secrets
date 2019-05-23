@@ -366,7 +366,7 @@ func ExchangeToken(authCode string) (string, error) {
 // Retrieve a token, saves the token or load from cache.
 func getToken(oauthConfig *oauth2.Config) (*oauth2.Token, error) {
 	log.Warn("Deprecated")
-	token, err := tokenFromFile(config.TokenFile)
+	token, err := TokenFromFile(config.TokenFile)
 	if err != nil {
 		log.Error(err.Error())
 		return refreshToken(oauthConfig)
@@ -406,7 +406,7 @@ func getTokenFromWeb(oauthConfig *oauth2.Config) *oauth2.Token {
 }
 
 // Retrieves a token from a local file.
-func tokenFromFile(file string) (*oauth2.Token, error) {
+func TokenFromFile(file string) (*oauth2.Token, error) {
 	log.Warn("Deprecated")
 	jsonToken, err := ReadFromFile(file)
 	if err != nil {

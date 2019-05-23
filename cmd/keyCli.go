@@ -1,19 +1,24 @@
 package cmd
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"net/http"
+	"os/exec"
+	"runtime"
 	"secrets/boxes"
 	"secrets/config"
 	"secrets/crypto"
 )
 
 var keyCmd = &cobra.Command{
-	Use:     "keygen",
-	Short:   "Generate a key",
-	Long:    "Generate a key",
-	Version: "0.1",
-	Run:     genKey,
+	Use:   "keygen",
+	Short: "Generate a key",
+	Long:  "Generate a key",
+	Run:   genKey,
 }
 
 var gtokenCmd = &cobra.Command{
@@ -21,14 +26,7 @@ var gtokenCmd = &cobra.Command{
 	Short:   "Refresh drive token",
 	Long:    "Regenerate the auth token for google drive api",
 	Version: "0.0",
-	Run: func(cmd *cobra.Command, args []string) {
-		setupLog()
-		_, err := boxes.GRefreshAuth()
-		if err != nil {
-			log.Fatal(err.Error())
-			panic("Could not refresh token for google drive api")
-		}
-	},
+	Run:     fetchToken,
 }
 
 func init() {
@@ -38,13 +36,62 @@ func init() {
 	rootCmd.AddCommand(gtokenCmd)
 }
 
-func genKey(cmd *cobra.Command, args []string) {
+func fetchToken(cmd *cobra.Command, args []string) {
 	setupLog()
-	key, err := crypto.GenerateKey()
+	r, err := http.Get("http://" + config.Server + ":" + config.Port + "/goauth/auth")
 	if err != nil {
 		log.Fatal(err)
+		return
 	}
-	if err := crypto.SaveKey(config.KeyPath, config.KeyName, key); err != nil {
+	var data map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	err = openUrl(data["redirect"])
+
+	var token string
+	fmt.Printf("Enter here the token from web browser")
+	if _, err := fmt.Scan(&token); err != nil {
 		log.Fatal(err)
 	}
+	if err := boxes.WriteIntoFile(config.TokenFile, string(token)); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func genKey(cmd *cobra.Command, args []string) {
+	setupLog()
+
+	r, err := http.Get("http://" + config.Server + ":" + config.Port + "/key/generate")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	var key map[string]string
+	if err = json.NewDecoder(r.Body).Decode(&key); err != nil {
+		log.Fatal(err)
+		return
+	}
+	log.Debug(key)
+
+	if err := crypto.SaveKey(config.KeyPath, config.KeyName, key["key"]); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func openUrl(url string) error {
+	var err error
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = errors.New("unsupported platform")
+	}
+	return err
 }

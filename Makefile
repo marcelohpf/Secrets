@@ -17,7 +17,7 @@ unseal: vault
 
 
 gen: vault
-	$(BINDIR)/vault keygen --key-path ./examples/ --key vault.key
+	$(BINDIR)/vault keygen --debug --key-path ./examples/ --key vault.key
 
 server: vault
 	./bin/vault --debug --key-path ./examples/ --box-path examples
