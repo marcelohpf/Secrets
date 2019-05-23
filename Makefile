@@ -13,12 +13,14 @@ seal: vault
 	$(BINDIR)/vault box seal --debug --key-path ./examples/ --key vault.key --box-path examples --item little-secrets --in ./examples/plain.txt
 
 unseal: vault
-	$(BINDIR)/vault box unseal --debug --key-path  ./examples/ --key vault.key --box-path examples/ --item little-secrets --out ./examples/plain.txt
+	$(BINDIR)/vault box unseal --debug --key-path  ./examples/ --key vault.key --box-path examples --item little-secrets --out ./examples/plain.txt
 
 
 gen: vault
 	$(BINDIR)/vault keygen --key-path ./examples/ --key vault.key
 
+server: vault
+	./bin/vault --debug --key-path ./examples/ --box-path examples
 .PHONY: clean vault
 
 clean:
