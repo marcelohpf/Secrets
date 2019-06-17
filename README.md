@@ -54,7 +54,7 @@ diff ./plain_in.txt ./plain_out.txt
 - [x] Configure a cloud storage
 - [ ] Allow user key definition
 - [x] Creates a HTTP server
-- [ ] Creates REST API to seal/unseal
+- [x] Creates REST API to seal/unseal
 - [ ] Create a docker for the HTTP server
 - [ ] Create a config file
 - [x] Search keys in the default directory

@@ -15,23 +15,22 @@ import (
 )
 
 var keyCmd = &cobra.Command{
-	Use:   "keygen",
+	Use:   "genkey",
 	Short: "Generate a key",
 	Long:  "Generate a key",
 	Run:   genKey,
 }
 
 var gtokenCmd = &cobra.Command{
-	Use:     "gdrive-token-refresh",
-	Short:   "Refresh drive token",
-	Long:    "Regenerate the auth token for google drive api",
-	Version: "0.0",
-	Run:     fetchToken,
+	Use:   "gdrive-token-refresh",
+	Short: "Refresh drive token",
+	Long:  "Regenerate the auth token for google drive api",
+	Run:   fetchToken,
 }
 
 func init() {
-	keyCmd.PersistentFlags().IntVar(&config.SizeKey, "size-key", 32, "Define the size of generated key.")
-	keyCmd.PersistentFlags().StringVar(&config.KeyName, "key", "vault.key", "Key name")
+	keyCmd.PersistentFlags().IntVarP(&config.SizeKey, "size-key", "s", 32, "Define the size of generated key.")
+	keyCmd.PersistentFlags().StringVarP(&config.KeyName, "key-name", "n", "secrets", "Key name")
 	rootCmd.AddCommand(keyCmd)
 	rootCmd.AddCommand(gtokenCmd)
 }
@@ -69,6 +68,7 @@ func genKey(cmd *cobra.Command, args []string) {
 		log.Fatal(err)
 		return
 	}
+
 	var key map[string]string
 	if err = json.NewDecoder(r.Body).Decode(&key); err != nil {
 		log.Fatal(err)
@@ -76,6 +76,7 @@ func genKey(cmd *cobra.Command, args []string) {
 	}
 	log.Debug(key)
 
+	log.Info(config.KeyName)
 	if err := crypto.SaveKey(config.KeyPath, config.KeyName, key["key"]); err != nil {
 		log.Fatal(err)
 	}

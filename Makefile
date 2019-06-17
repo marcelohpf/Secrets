@@ -17,10 +17,10 @@ unseal: vault
 
 
 gen: vault
-	$(BINDIR)/vault keygen --debug --key-path ./examples/ --key vault.key
+	$(BINDIR)/vault genkey --debug --key-path ./examples/ --key-name vault.key
 
 server: vault
-	./bin/vault --debug --key-path ./examples/ --box-path examples
+	./bin/vault server --debug --key-path ./examples/ --box-path examples
 .PHONY: clean vault
 
 clean:

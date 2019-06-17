@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"net/http"
@@ -17,7 +18,6 @@ var boxCmd = &cobra.Command{
 	Short:   "Box",
 	Long:    "Manage your secret boxes.",
 	Version: "0.1",
-	Run:     func(cmd *cobra.Command, args []string) {},
 }
 
 var encryptCmd = &cobra.Command{
@@ -36,7 +36,7 @@ var decryptCmd = &cobra.Command{
 func init() {
 	boxCmd.PersistentFlags().StringVar(&config.ItemName, "item", "", "Item name to read/write content. Should be a single file on any type.")
 	boxCmd.PersistentFlags().StringVar(&config.BoxName, "box", "", "Box name")
-	boxCmd.PersistentFlags().StringVar(&config.KeyName, "key", "", "Key name")
+	boxCmd.PersistentFlags().StringVar(&config.BoxKeyName, "key", "", "Key name")
 	encryptCmd.PersistentFlags().StringVar(&config.InFile, "in", "", "In file content to seal.")
 	decryptCmd.PersistentFlags().StringVar(&config.OutFile, "out", "", "Out file content after unseal.")
 	boxCmd.AddCommand(encryptCmd)
@@ -47,7 +47,7 @@ func init() {
 func encrypt(cmd *cobra.Command, args []string) {
 	setupLog()
 
-	key, err := crypto.GetKey(config.KeyPath, config.KeyName)
+	key, err := crypto.GetKey(config.KeyPath, config.BoxKeyName)
 	if err != nil {
 		log.Fatal(err.Error())
 		return
@@ -60,12 +60,19 @@ func encrypt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	token, err := boxes.TokenFromFile(config.TokenFile)
-	if err != nil {
-		log.Fatal(err)
-		return
+	var body server.BoxArgs
+
+	switch config.BackendStorage {
+	case "gdrive":
+		token, err := boxes.TokenFromFile(config.TokenFile)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		body = server.BoxArgs{Key: key, Content: text, BoxName: config.BoxName, ItemName: config.ItemName, Token: token}
+	default:
+		body = server.BoxArgs{Key: key, Content: text, BoxName: config.BoxName, ItemName: config.ItemName}
 	}
-	body := server.BoxArgs{Key: key, Content: text, BoxName: config.BoxName, ItemName: config.ItemName, Token: token}
 
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
@@ -91,20 +98,26 @@ func encrypt(cmd *cobra.Command, args []string) {
 func decrypt(cmd *cobra.Command, args []string) {
 	setupLog()
 
-	key, err := crypto.GetKey(config.KeyPath, config.KeyName)
+	key, err := crypto.GetKey(config.KeyPath, config.BoxKeyName)
 
 	if err != nil {
 		log.Fatal(err.Error())
 		panic("error")
 	}
 
-	token, err := boxes.TokenFromFile(config.TokenFile)
-	if err != nil {
-		log.Fatal(err)
-		return
+	var body server.BoxArgs
+	switch config.BackendStorage {
+	case "gdrive":
+		token, err := boxes.TokenFromFile(config.TokenFile)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+		body = server.BoxArgs{Key: key, BoxName: config.BoxName, ItemName: config.ItemName, Token: token}
+	default:
+		body = server.BoxArgs{Key: key, BoxName: config.BoxName, ItemName: config.ItemName}
 	}
 
-	body := server.BoxArgs{Key: key, BoxName: config.BoxName, ItemName: config.ItemName, Token: token}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		log.Fatal(err)
@@ -125,5 +138,9 @@ func decrypt(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	boxes.WriteIntoFile(config.OutFile, data["content"])
+	if config.OutFile != "" {
+		boxes.WriteIntoFile(config.OutFile, data["content"])
+	} else {
+		fmt.Println(data["content"])
+	}
 }
