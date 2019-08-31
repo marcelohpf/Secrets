@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
@@ -127,4 +128,10 @@ func dirExpansion(path string) (string, error) {
 		return filepath.Join(dir, path[2:]), nil
 	}
 	return filepath.Abs(path)
+}
+
+func hashPassword(password string) []byte {
+	sum := sha256.Sum256([]byte(password))
+	var s []byte = sum[:]
+	return s
 }
